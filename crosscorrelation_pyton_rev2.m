@@ -17,10 +17,10 @@ GRLz=expData.data{j}.GRFData.Data(:,3);
 % for i=1:10:length(GRRz)  
 %     NexusRlowFreq1=GRRz(i);
 %     NexusRlowFreq=[NexusRlowFreq;NexusRlowFreq1];
-      NexusRlowFreq=resample(GRRz,1,10);
+    NexusRlowFreq=resample(GRRz,1,10);
 %     NexusLlowFreq1=GRLz(i);
 %     NexusLlowFreq=[NexusLlowFreq;NexusLlowFreq1];
-      NexusLlowFreq=resample(GRLz,1,10);
+    NexusLlowFreq=resample(GRLz,1,10);
 % end
 
 %Creating NaN matrix with the lenght of the data 
@@ -36,7 +36,7 @@ outmat(:,1)=outmat(:,1)-outmat(1,1)+1;
 % plot(gap,'b')
 
 %Creating a linear interpolate matrix from Pyton data 
-newData=interp1(outmat(:,1),outmat(:,1:end),[outmat(1,1):outmat(end,1)],'linear');
+newData=interp1(outmat(:,1),outmat(:,1:end),[outmat(1,1):outmat(end,1)]);
 
 %Creating a Matrix with NaN in gaps from Pyton 
 for i=1:length(outmat)
@@ -57,12 +57,12 @@ newData2=newData2(abs(timeDiff)+1:end,1:end);
  
 figure()
 % 
-plot(GRRz,'b')
-hold on 
-plot(newData(:,2), 'r')
-plot(newData2(:,2), 'g')
-legend('Nexus','Interpolate Pyton','Pyton')
-title('Sync of R Force plate data')
+% plot(GRRz,'b')
+% hold on 
+% plot(newData(:,2), 'r')
+% plot(newData2(:,2), 'g')
+% legend('Nexus','Interpolate Pyton','Pyton')
+% title('Sync of R Force plate data')
 
 %%
 %Finding HS from Nexus at 100HZ and Interpolated Pyton data
@@ -74,21 +74,23 @@ title('Sync of R Force plate data')
  % GOOD STRIDES
  
 locRHSpyton=find(RHSpyton==1);
-locRHSnexus=find(RHSpyton==1);
+locRHSnexus=find(RHSnexus==1);
 locLHSpyton=find(LHSpyton==1);
 locLHSnexus=find(LHSnexus==1);
 
 %%
-for x=1:length(locRHSpyton)
-    if RHSpyton(locRHSpyton(x))==1 && newData(locRHSpyton(x)+10,6)==1
-        GoodRHS(x,1)=1;
-        
-    elseif  RHSpyton(locRHSpyton(x))==1 && newData(locRHSpyton(x)+10,6)==0
-        GoodRHS(x,1)=0;
-    
-    end
-      
-end
+GoodRHS=newData(locRHSpyton+10,6);
+
+% for x=1:length(locRHSpyton)
+%     if RHSpyton(locRHSpyton(x))==1 && newData(locRHSpyton(x)+10,6)==1
+%         GoodRHS(x,1)=1;
+%         
+%     elseif  RHSpyton(locRHSpyton(x))==1 && newData(locRHSpyton(x)+10,6)==0
+%         GoodRHS(x,1)=0;
+%     
+%     end
+%       
+% end
 
 %%
 % for x=1:length(RHSpyton)
