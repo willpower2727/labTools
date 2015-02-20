@@ -78,7 +78,7 @@ classdef adaptationData
 		%labelList: array of strings with the labels name 
 		%
 		%EX: labelList=adaptData.getParameters;
-		            labelList=this.data.labels;
+            labelList=this.data.labels;
         end
         
         function [data,inds,auxLabel]=getParamInTrial(this,label,trial)
@@ -323,6 +323,10 @@ classdef adaptationData
         
         %Display functions:
         function figHandle=plotParamTimeCourse(this,label,runningBinSize,trialMarkerFlag)
+
+        %Plot of the behaviour of parameters through the entire experiment
+        %specify the behaviour on each condition and trial		
+
         %Plot of the behaviour of parameters through the different conditions 
         %specify the parameter behaviour on each condition and trial
         %
@@ -336,7 +340,7 @@ classdef adaptationData
 		%figHandle: number of the figure where is the plot 	
 		%
 		%EX: adaptData.plotParamTimeCourse('spatialContribution',2,1)
-		
+
 		
             if isa(label,'char')
                 label={label};
@@ -539,7 +543,6 @@ classdef adaptationData
                 aux=fields(a);
                 this=a.(aux{1});
                 [veryEarlyPoints(:,:,:,subject),earlyPoints(:,:,:,subject),latePoints(:,:,:,subject)]=getEarlyLateData(this,label,conds,removeBiasFlag,earlyNumber,lateNumber,exemptLast);
-            %Indexes in data correspond to: condition, stride,label,subject
             end
             %Compute some stats
             aux1=squeeze(nanmean(earlyPoints,2)); %Averaging across strides
@@ -563,16 +566,15 @@ classdef adaptationData
         
         %function [avg, indiv]=plotAvgTimeCourse(adaptDataList,params,conditions,binwidth,indivFlag,indivSubs)
         function figHandle=plotAvgTimeCourse(adaptDataList,params,conditions,binwidth,indivFlag,indivSubs)
-		
-        %adaptDataList must be cell array of 'param.mat' file names
-        %params is cell array of parameters to plot. List with commas to
-        %plot on separate graphs or with semicolons to plot on same graph.
-        %conditions is cell array of conditions to plot
-        %binwidth is the number of data points to average in time
-        %indivFlag - set to true to plot individual subject time courses
-        %indivSubs - must be a cell array of 'param.mat' file names that is 
-        %a subset of those in the adaptDataList. Plots specific subjects
-        %instead of all subjects.
+            %adaptDataList must be cell array of 'param.mat' file names
+            %params is cell array of parameters to plot. List with commas to
+            %plot on separate graphs or with semicolons to plot on same graph.
+            %conditions is cell array of conditions to plot
+            %binwidth is the number of data points to average in time
+            %indivFlag - set to true to plot individual subject time courses
+            %indivSubs - must be a cell array of 'param.mat' file names that is
+            %a subset of those in the adaptDataList. Plots specific subjects
+            %instead of all subjects.
             
             %First: see if adaptDataList is a single subject (char), a cell
             %array of subject names (one group of subjects), or a cell array of cell arrays of
@@ -604,13 +606,7 @@ classdef adaptationData
                 conditions=adaptData.metaData.conditionName; %default
             end
             for c=1:length(conditions)
-                if isa(conditions{c},'cell')
-                    cond{c}=conditions{c}{1}(ismember(conditions{c}{1},['A':'Z' 'a':'z' '0':'9']));
-                elseif isa(conditions{c},'char')
-                    cond{c}=conditions{c}(ismember(conditions{c},['A':'Z' 'a':'z' '0':'9'])); %remove non alphanumeric characters        
-                else
-                    error('Conditions argument is neither a string, a cell array of strings or a cell array of cell array of string.')
-                end
+                cond{c}=conditions{c}(ismember(conditions{c},['A':'Z' 'a':'z' '0':'9'])); %remove non alphanumeric characters
             end
             
             if nargin<4
@@ -629,43 +625,104 @@ classdef adaptationData
             [ah,figHandle]=optimizedSubPlot(size(params,2),4,1);
             legendStr={};
             % Set colors
-            poster_colors;
+            poster_colorsHH;
             % Set colors order
-            ColorOrder=[p_red; p_orange; p_fade_green; p_fade_blue; p_plum; p_green; p_blue; p_fade_red; p_lime; p_yellow; [0 0 0]];
+            ColorOrder=[p_blue; p_gray; p_orange; p_green; p_violet; p_fade_green; p_fade_blue; p_green; p_fade_red; p_yellow; p_fade_orange; p_dark_green; p_dark_red];
+            %ColorOrder=[p_fade_green; p_fade_blue; p_blue]; %[p_red; p_orange; p_violet; p_green; p_dark_red; p_yellow; p_dark_green; p_blue; p_dark_blue; p_fade_green; p_fade_blue; p_fade_orange; p_fade_red];
+                                                            %OA       OG         OANC       YA     OASV         OGNC       YASV        YG      YGNC           YASS        YGSS          OGSS          OASS
             LineOrder={'-','--',':','-.'};
             
-            %Load data and determine length of conditions            
-            nConds= length(conditions);            
+            %Load data and determine length of conditions
+            nConds= length(conditions);
             s=1;
             for group=1:Ngroups
                 for subject=1:length(auxList{group})
                     %Load subject
                     load(auxList{group}{subject});
+                    
+                    %normalize contributions based on combined step lengths
+                    SLf=adaptData.data.getParameter('stepLengthFast');
+                    SLs=adaptData.data.getParameter('stepLengthSlow');
+                    Dist=SLf+SLs;
+                    contLabels={'spatialContribution','stepTimeContribution','velocityContribution','netContribution'};
+                    [~,dataCols]=isaParameter(adaptData.data,contLabels);
+                    for c=1:length(contLabels)
+                        contData=adaptData.data.getParameter(contLabels(c));
+                        contData=contData./Dist;
+                        adaptData.data.Data(:,dataCols(c))=contData;
+                    end
+                    
+                    %EDIT: create contribution error values
+                    vels=adaptData.data.getParameter('stanceSpeedSlow');
+                    velf=adaptData.data.getParameter('stanceSpeedFast');
+                    deltaST=adaptData.data.getParameter('stanceTimeDiff');
+                    velCont=adaptData.data.getParameter('velocityContribution');
+                    stepCont=adaptData.data.getParameter('stepTimeContribution');
+                    spatialCont=adaptData.data.getParameter('spatialContribution');
+%                     Tideal=((vels+velf)./2).*deltaST./Dist;
+%                     Sideal=(-velCont)-Tideal;
+%                     [~,dataCols]=isaParameter(adaptData.data,{'Tgoal','Sgoal'});
+%                     adaptData.data.Data(:,dataCols(1))=Tideal-stepCont;
+%                     adaptData.data.Data(:,dataCols(2))=Sideal-spatialCont;
+                    
+                    %Calc errors from spatial
+                    aSlow=adaptData.data.getParameter('alphaSlow');
+                    aFast=adaptData.data.getParameter('alphaFast');
+                    bSlow=adaptData.data.getParameter('betaSlow');
+                    bFast=adaptData.data.getParameter('betaFast');
+                    rangeSlow=aSlow-bSlow;
+                    rangeFast=aFast-bFast;
+                    Sideal=(2*(aFast-aSlow))./Dist;
+                    Sideal=(2*(aFast+aSlow)./Dist).*((rangeFast-rangeSlow)./(rangeFast+rangeSlow));
+                    Tideal=(-velCont)-Sideal;
+                    [~,dataCols]=isaParameter(adaptData.data,{'Tgoal','Sgoal'});
+                    adaptData.data.Data(:,dataCols(1))=Tideal-stepCont;
+                    adaptData.data.Data(:,dataCols(2))=Sideal-spatialCont;
+                    
                     adaptData = adaptData.removeBias;
+                    
                     for c=1:nConds
-                        conditionIdxs=getConditionIdxsFromName(adaptData,{conditions{c}});
-                        dataPts=adaptData.getParamInCond(params,adaptData.metaData.conditionName{conditionIdxs});
-                        nPoints=size(dataPts,1);
-                        
-                        %cond{c}=adaptData.metaData.conditionName{conditionIdxs};
-                        if nPoints == 0
-                            numPts.(cond{c})(s)=NaN;
-                        else                             
-                            numPts.(cond{c})(s)=nPoints;
-                        end                        
-                        for p=1:length(params)
-                            %itialize so there are no inconsistant dimensions or out of bounds errors
-                            values(group).(params{p}).(cond{c})(subject,:)=NaN(1,2000); %this assumes that the max number of data points that could exist in a single condition is 2000                                         
-                            if strcmp(params{p},'velocityContribution') %FIXME: This is not recommended, we are taking abs() of the velocity Contribution without saying anything. Furthermore, what happens when velContrib ~ 0 ?
-                                values(group).(params{p}).(cond{c})(subject,1:nPoints)=abs(dataPts(:,p));    
+                        if false
+%                         if strcmpi(conditions{c},'adaptation') || strcmpi(conditions{c},'re-adaptation') || strcmpi(conditions{c},'TM post')
+                            trials=adaptData.getTrialsInCond(conditions{c});
+                            for t=1:length(trials)
+                                dataPts=adaptData.getParamInTrial(params,trials(t));
+                                nPoints=size(dataPts,1);
+                                if nPoints == 0
+                                    numPts.(cond{c}).(['trial' num2str(t)])(s)=NaN;
+                                else
+                                    numPts.(cond{c}).(['trial' num2str(t)])(s)=nPoints;
+                                end
+                                for p=1:length(params)
+                                    %itialize so there are no inconsistant dimensions or out of bounds errors
+                                    values(group).(params{p}).(cond{c}).(['trial' num2str(t)])(subject,:)=NaN(1,1000); %this assumes that the max number of data points that could exist in a single condition is 1000
+                                    values(group).(params{p}).(cond{c}).(['trial' num2str(t)])(subject,1:nPoints)=dataPts(:,p);
+                                end
+                            end
+                        else
+                            dataPts=adaptData.getParamInCond(params,conditions{c});
+                            nPoints=size(dataPts,1);
+                            if nPoints == 0
+                                numPts.(cond{c})(s)=NaN;
                             else
+                                numPts.(cond{c})(s)=nPoints;
+                            end
+                            for p=1:length(params)
+                                %itialize so there are no inconsistant dimensions or out of bounds errors
+                                values(group).(params{p}).(cond{c})(subject,:)=NaN(1,1000); %this assumes that the max number of data points that could exist in a single condition is 1000
+                                
+                                % %                             %VELOCITY CONTRIBUTION IS FLIPPED HERE!!
+                                %                             if strcmp(params{p},'velocityContribution')
+                                %                                 values(group).(params{p}).(cond{c})(subject,1:nPoints)=abs(dataPts(:,p));
+                                %                             else
                                 values(group).(params{p}).(cond{c})(subject,1:nPoints)=dataPts(:,p);
+                                %                             end
                             end
                         end
                     end
                     s=s+1;
                 end
-            end           
+            end
             
             %plot the average value of parameter(s) entered over time, across all subjects entered.
             for group=1:Ngroups
@@ -673,137 +730,272 @@ classdef adaptationData
                 lineX=0;
                 subjects=auxList{group};
                 for c=1:length(conditions)
-
-                    % 1) find the length of each condition
-
-                    %to plot the min number of pts in each condition:
-%                       [maxPts,loc]=nanmin(numPts.(cond{c}));
-%                       while maxPts<0.75*nanmin(numPts.(cond{c})([1:loc-1 loc+1:end]))
-%                           numPts.(cond{c})(loc)=nanmean(numPts.(cond{c})([1:loc-1 loc+1:end])); %do not include min in mean
-%                           [maxPts,loc]=nanmin(numPts.(cond{c}));
-%                       end
-
-                    %to plot the max number of pts in each condition:
-                    [maxPts,loc]=nanmax(numPts.(cond{c})); %Note: a colliding version had nanmin here instead of nanmax. I believe this is the correct form.
-                    while maxPts>1.25*nanmax(numPts.(cond{c})([1:loc-1 loc+1:end]))
-                        numPts.(cond{c})(loc)=nanmean(numPts.(cond{c})([1:loc-1 loc+1:end])); %do not include min in mean
-                        [maxPts,loc]=nanmax(numPts.(cond{c}));
+                    
+                    if false
+%                     if strcmpi(conditions{c},'adaptation') || strcmpi(conditions{c},'re-adaptation') || strcmpi(conditions{c},'TM post')
+                        
+                        for t=1:length(fields(values(group).(params{p}).(cond{c})));
+                            % 1) find the length of each trial
+                            
+                            %to plot the min number of pts in each trial:
+                            [maxPts,loc]=nanmin(numPts.(cond{c}).(['trial' num2str(t)]));
+                            while maxPts<0.75*nanmin(numPts.(cond{c}).(['trial' num2str(t)])([1:loc-1 loc+1:end]))
+                                numPts.(cond{c}).(['trial' num2str(t)])(loc)=nanmean(numPts.(cond{c}).(['trial' num2str(t)])([1:loc-1 loc+1:end])); %do not include min in mean
+                                [maxPts,loc]=nanmin(numPts.(cond{c}).(['trial' num2str(t)]));
+                            end
+                            if maxPts==0
+                                continue
+                            end
+                            
+%                             %to plot the max number of pts in each condition:
+%                             [maxPts,loc]=nanmax(numPts.(cond{c}).(['trial' num2str(t)]));
+%                             while maxPts>1.25*nanmax(numPts.(cond{c}).(['trial' num2str(t)])([1:loc-1 loc+1:end]))
+%                                 numPts.(cond{c}).(['trial' num2str(t)])(loc)=nanmean(numPts.(cond{c}).(['trial' num2str(t)])([1:loc-1 loc+1:end])); %do not include min in mean
+%                                 [maxPts,loc]=nanmax(numPts.(cond{c}).(['trial' num2str(t)]));
+%                             end
+%                             if maxPts==0
+%                                 continue
+%                             end
+                            
+                            for p=1:length(params)
+                                
+                                allValues=values(group).(params{p}).(cond{c}).(['trial' num2str(t)])(:,1:maxPts-5);
+                                
+                                % 2) average across subjuects within bins
+                                
+                                %Find (running) averages and standard deviations for bin data
+                                start=1:size(allValues,2)-(binwidth-1);
+                                stop=start+binwidth-1;
+                                %             %Find (simple) averages and standard deviations for bin data
+                                %             start = 1:binwidth:(size(allValues,2)-binwidth+1);
+                                %             stop = start+(binwidth-1);
+                                
+                                for i = 1:length(start)
+                                    t1 = start(i);
+                                    t2 = stop(i);
+                                    bin = allValues(:,t1:t2);
+                                    
+                                    %errors calculated as SE of averaged subject points
+                                    subBin=nanmean(bin,2);
+                                    avg(group).(params{p}).(cond{c}).(['trial' num2str(t)])(i)=nanmean(subBin);
+                                    se(group).(params{p}).(cond{c}).(['trial' num2str(t)])(i)=nanstd(subBin)/sqrt(length(subBin));
+                                    indiv(group).(params{p}).(cond{c}).(['trial' num2str(t)])(:,i)=subBin;
+                                    
+                                    %                           %errors calculated as SE of all data
+                                    %                           %points (before indiv subjects are averaged)
+                                    %                           avg.(params{p}).(cond{c})(i)=nanmean(reshape(bin,1,numel(bin)));
+                                    %                           se.(params{p}).(cond{c})(i)=nanstd(reshape(bin,1,numel(bin)))/sqrt(binwidth);
+                                    %                           indiv.(params{p}).(cond{c})(:,i)=nanmean(bin,2);
+                                end
+                                
+                                % 3) plot data
+                                if size(params,1)>1
+                                    axes(ah)
+                                    g=p;
+                                    Cdiv=group;
+                                    if Ngroups==1
+                                        legStr=[params{p} num2str(t)];
+                                    else
+                                        legStr={[params{p} num2str(t) ' group ' num2str(group)]};
+                                    end
+                                else
+                                    axes(ah(p))
+                                    g=group;
+                                    Cdiv=1;
+                                end
+                                hold on
+                                y=[avg(group).(params{p}).(cond{c}).(['trial' num2str(t)]) NaN(1,10)];
+                                E=[se(group).(params{p}).(cond{c}).(['trial' num2str(t)]) NaN(1,10)];
+                                condLength=length(y);
+                                x=Xstart:Xstart+condLength-1;
+                                
+                                if nargin>4 && ~isempty(indivFlag) && indivFlag
+                                    if nargin>5 && ~isempty(indivSubs)
+                                        subsToPlot=indivSubs{group};
+                                    else
+                                        subsToPlot=subjects;
+                                    end
+                                    for s=1:length(subsToPlot)
+                                        subInd=find(ismember(subjects,subsToPlot{s}));
+                                        %to plot as dots
+                                        % plot(x,indiv.(['cond' num2str(cond)])(subInd,:),'o','MarkerSize',3,'MarkerEdgeColor',ColorOrder(subInd,:),'MarkerFaceColor',ColorOrder(subInd,:));
+                                        %to plot as lines
+                                        Li{group}(s)=plot(x,indiv(group).(params{p}).(cond{c}).(['trial' num2str(t)])(subInd,:),LineOrder{group},'color',ColorOrder(subInd,:));
+                                        legendStr{group}=subsToPlot;
+                                    end
+                                    plot(x,y,'o','MarkerSize',3,'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0.7 0.7 0.7].^group)
+                                else
+                                    if Ngroups==1 && ~(size(params,1)>1)
+                                        [Pa, Li{c}]=nanJackKnife(x,y,E,ColorOrder(c,:),ColorOrder(c,:)+0.5.*abs(ColorOrder(c,:)-1),0.7);
+                                        set(Li{c},'Clipping','off')
+                                        H=get(Li{c},'Parent');
+                                        legendStr={conditions};
+                                    elseif size(params,1)>1
+                                        [Pa, Li{(group-1)*size(params,1)+p}]=nanJackKnife(x,y,E,ColorOrder(g,:)./Cdiv,ColorOrder(g,:)./Cdiv+0.5.*abs(ColorOrder(g,:)./Cdiv-1),0.7);
+                                        set(Li{(group-1)*size(params,1)+p},'Clipping','off')
+                                        H=get(Li{(group-1)*size(params,1)+p},'Parent');
+                                        legendStr{(group-1)*size(params,1)+p}=legStr;
+                                    else
+                                        [Pa, Li{g}]=nanJackKnife(x,y,E,ColorOrder(g,:)./Cdiv,ColorOrder(g,:)./Cdiv+0.5.*abs(ColorOrder(g,:)./Cdiv-1),0.7);
+                                        set(Li{g},'Clipping','off')
+                                        H=get(Li{g},'Parent');
+                                        legendStr{g}={['group' num2str(g)]};
+                                    end
+                                    set(Pa,'Clipping','off')
+                                    set(H,'Layer','top')
+                                end
+                                h=refline(0,0);
+                                set(h,'color','k')                        
+                                hold off
+                            end                            
+                            Xstart=Xstart+condLength;                            
+                        end              
+                        for p=1:length(params)
+                            if c==length(conditions) && group==Ngroups
+                                %on last iteration of conditions loop, add title and
+                                %vertical lines to seperate conditions
+                                if ~(size(params,1)>1)
+                                    axes(ah(p))
+                                    title(params{p},'fontsize',12)                                    
+                                else
+                                    axes(ah)
+                                end
+                                axis tight
+                                line([lineX; lineX],ylim,'color','k')
+                                xticks=lineX+diff([lineX Xstart])./2;
+                                set(gca,'fontsize',8,'Xlim',[0 Xstart],'Xtick', xticks, 'Xticklabel', conditions)
+                            end                           
+                        end
+                        lineX(end+1)=Xstart-0.5;
+                        
+                    else
+                        % 1) find the length of each condition
+                        
+                        %to plot the min number of pts in each condition:
+                        [maxPts,loc]=nanmin(numPts.(cond{c}));
+                        while maxPts<0.75*nanmin(numPts.(cond{c})([1:loc-1 loc+1:end]))
+                            numPts.(cond{c})(loc)=nanmean(numPts.(cond{c})([1:loc-1 loc+1:end])); %do not include min in mean
+                            [maxPts,loc]=nanmin(numPts.(cond{c}));
+                        end
+%                         
+%                         %to plot the max number of pts in each condition:
+%                         [maxPts,loc]=nanmax(numPts.(cond{c}));
+%                         while maxPts>1.25*nanmax(numPts.(cond{c})([1:loc-1 loc+1:end]))
+%                             numPts.(cond{c})(loc)=nanmean(numPts.(cond{c})([1:loc-1 loc+1:end])); %do not include min in mean
+%                             [maxPts,loc]=nanmax(numPts.(cond{c}));
+%                         end
+                        
+                        for p=1:length(params)
+                            
+                            allValues=values(group).(params{p}).(cond{c})(:,1:maxPts);
+                            
+                            % 2) average across subjuects within bins
+                            
+                            %Find (running) averages and standard deviations for bin data
+                            start=1:size(allValues,2)-(binwidth-1);
+                            stop=start+binwidth-1;
+                            %             %Find (simple) averages and standard deviations for bin data
+                            %             start = 1:binwidth:(size(allValues,2)-binwidth+1);
+                            %             stop = start+(binwidth-1);
+                            
+                            for i = 1:length(start)
+                                t1 = start(i);
+                                t2 = stop(i);
+                                bin = allValues(:,t1:t2);
+                                
+                                %errors calculated as SE of averaged subject points
+                                subBin=nanmean(bin,2);
+                                avg(group).(params{p}).(cond{c})(i)=nanmean(subBin);
+                                se(group).(params{p}).(cond{c})(i)=nanstd(subBin)/sqrt(length(subBin));
+                                indiv(group).(params{p}).(cond{c})(:,i)=subBin;
+                                
+                                %                           %errors calculated as SE of all data
+                                %                           %points (before indiv subjects are averaged)
+                                %                           avg.(params{p}).(cond{c})(i)=nanmean(reshape(bin,1,numel(bin)));
+                                %                           se.(params{p}).(cond{c})(i)=nanstd(reshape(bin,1,numel(bin)))/sqrt(binwidth);
+                                %                           indiv.(params{p}).(cond{c})(:,i)=nanmean(bin,2);
+                            end
+                            
+                            % 3) plot data
+                            if size(params,1)>1
+                                axes(ah)
+                                g=p;
+                                Cdiv=group;
+                                if Ngroups==1
+                                    legStr=params(p);
+                                else
+                                    legStr={[params{p} num2str(group)]};
+                                end
+                            else
+                                axes(ah(p))
+                                g=group;
+                                Cdiv=1;
+                            end
+                            hold on
+                            y=avg(group).(params{p}).(cond{c});
+                            E=se(group).(params{p}).(cond{c});
+                            condLength=length(y);
+                            x=Xstart:Xstart+condLength-1;
+                            
+                            if nargin>4 && ~isempty(indivFlag) && indivFlag
+                                if nargin>5 && ~isempty(indivSubs)
+                                    subsToPlot=indivSubs{group};
+                                else
+                                    subsToPlot=subjects;
+                                end
+                                for s=1:length(subsToPlot)
+                                    subInd=find(ismember(subjects,subsToPlot{s}));
+                                    %to plot as dots
+                                    % plot(x,indiv.(['cond' num2str(cond)])(subInd,:),'o','MarkerSize',3,'MarkerEdgeColor',ColorOrder(subInd,:),'MarkerFaceColor',ColorOrder(subInd,:));
+                                    %to plot as lines
+                                    Li{group}(s)=plot(x,indiv(group).(params{p}).(cond{c})(subInd,:),LineOrder{group},'color',ColorOrder(subInd,:));
+                                    legendStr{group}=subsToPlot;
+                                end
+                                plot(x,y,'o','MarkerSize',3,'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0.7 0.7 0.7].^group)
+                            else
+                                if Ngroups==1 && ~(size(params,1)>1)
+                                    [Pa, Li{c}]=nanJackKnife(x,y,E,ColorOrder(c,:),ColorOrder(c,:)+0.5.*abs(ColorOrder(c,:)-1),0.7);
+                                    set(Li{c},'Clipping','off')
+                                    H=get(Li{c},'Parent');
+                                    legendStr={conditions};
+                                elseif size(params,1)>1
+                                    [Pa, Li{(group-1)*size(params,1)+p}]=nanJackKnife(x,y,E,ColorOrder(g,:)./Cdiv,ColorOrder(g,:)./Cdiv+0.5.*abs(ColorOrder(g,:)./Cdiv-1),0.7);
+                                    set(Li{(group-1)*size(params,1)+p},'Clipping','off')
+                                    H=get(Li{(group-1)*size(params,1)+p},'Parent');
+                                    legendStr{(group-1)*size(params,1)+p}=legStr;
+                                else
+                                    [Pa, Li{g}]=nanJackKnife(x,y,E,ColorOrder(g,:),ColorOrder(g,:)+0.5.*abs(ColorOrder(g,:)-1),0.7);
+                                    set(Li{g},'Clipping','off')
+                                    H=get(Li{g},'Parent');
+                                    legendStr{g}={['group' num2str(g)]};
+                                end
+                                set(Pa,'Clipping','off')
+                                set(H,'Layer','top')
+                            end
+                            h=refline(0,0);
+                            set(h,'color','k')
+                            
+                            if c==length(conditions) && group==Ngroups
+                                %on last iteration of conditions loop, add title and
+                                %vertical lines to seperate conditions
+                                if ~(size(params,1)>1)
+                                    title(params{p},'fontsize',12)
+                                end
+                                axis tight
+                                line([lineX; lineX],ylim,'color','k')
+                                xticks=lineX+diff([lineX Xstart+condLength])./2;
+                                set(gca,'fontsize',20,'Xlim',[0 Xstart+condLength])%'Xtick', xticks, 'Xticklabel', conditions)                                
+                            end
+                            hold off
+                        end
+                        Xstart=Xstart+condLength;
+                        lineX(end+1)=Xstart-0.5;
                     end
                     
-                    for p=1:length(params)
-
-                        allValues=values(group).(params{p}).(cond{c})(:,1:maxPts);
-
-                        % 2) average across subjuects within bins
-
-                        %Find (running) averages and standard deviations for bin data
-                        start=1:size(allValues,2)-(binwidth-1);
-                        stop=start+binwidth-1;
-                        %             %Find (simple) averages and standard deviations for bin data
-                        %             start = 1:binwidth:(size(allValues,2)-binwidth+1);
-                        %             stop = start+(binwidth-1);
-
-                        for i = 1:length(start)
-                            t1 = start(i);
-                            t2 = stop(i);                                    
-                            bin = allValues(:,t1:t2);
-
-                            %errors calculated as SE of averaged subject points
-                            subBin=nanmean(bin,2);
-                            avg(group).(params{p}).(cond{c})(i)=nanmean(subBin);
-                            se(group).(params{p}).(cond{c})(i)=nanstd(subBin)/sqrt(length(subBin));
-                            indiv(group).(params{p}).(cond{c})(:,i)=subBin;
-
-%                           %errors calculated as SE of all data
-%                           %points (before indiv subjects are averaged)
-%                           avg.(params{p}).(cond{c})(i)=nanmean(reshape(bin,1,numel(bin)));
-%                           se.(params{p}).(cond{c})(i)=nanstd(reshape(bin,1,numel(bin)))/sqrt(binwidth);
-%                           indiv.(params{p}).(cond{c})(:,i)=nanmean(bin,2);
-                        end
-
-                        % 3) plot data
-                        if size(params,1)>1
-                            axes(ah)
-                            g=p;
-                            Cdiv=group;
-                            if Ngroups==1
-                                legStr=params(p);
-                            else                                
-                                legStr={[params{p} num2str(group)]};                                    
-                            end
-                        else
-                            axes(ah(p))
-                            g=group;
-                            Cdiv=1;                                              
-                        end
-                        hold on                       
-                        y=avg(group).(params{p}).(cond{c});
-                        E=se(group).(params{p}).(cond{c});                        
-                        condLength=length(y);
-                        x=Xstart:Xstart+condLength-1;
-                        
-                        if nargin>4 && ~isempty(indivFlag) && indivFlag
-                            if nargin>5 && ~isempty(indivSubs)
-                                subsToPlot=indivSubs{group};                                
-                            else
-                                subsToPlot=subjects;
-                            end
-                            for s=1:length(subsToPlot)
-                                subInd=find(ismember(subjects,subsToPlot{s}));
-                                %to plot as dots
-                                %  Li{group}(s)=plot(x,indiv(group).(params{p}).(cond{c})(subInd,:),'o','MarkerSize',3,'MarkerEdgeColor',ColorOrder(subInd,:),'MarkerFaceColor',ColorOrder(subInd,:));
-                                %to plot as lines
-                                Li{group}(s)=plot(x,indiv(group).(params{p}).(cond{c})(subInd,:),LineOrder{group},'color',ColorOrder(subInd,:));
-                                legendStr{group}=subsToPlot;
-                            end
-                            plot(x,y,'o','MarkerSize',3,'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0.7 0.7 0.7].^group)                            
-                        else
-                            if Ngroups==1 && ~(size(params,1)>1)
-                                [Pa, Li{c}]=nanJackKnife(x,y,E,ColorOrder(c,:),ColorOrder(c,:)+0.5.*abs(ColorOrder(c,:)-1),0.7);                                
-                                set(Li{c},'Clipping','off')
-                                H=get(Li{c},'Parent');                                
-                                legendStr={conditions};
-                            elseif size(params,1)>1
-                                [Pa, Li{(group-1)*size(params,1)+p}]=nanJackKnife(x,y,E,ColorOrder(g,:)./Cdiv,ColorOrder(g,:)./Cdiv+0.5.*abs(ColorOrder(g,:)./Cdiv-1),0.7);                                
-                                set(Li{(group-1)*size(params,1)+p},'Clipping','off')
-                                H=get(Li{(group-1)*size(params,1)+p},'Parent');  
-                                legendStr{(group-1)*size(params,1)+p}=legStr;
-                            else
-                                [Pa, Li{g}]=nanJackKnife(x,y,E,ColorOrder(g,:)./Cdiv,ColorOrder(g,:)./Cdiv+0.5.*abs(ColorOrder(g,:)./Cdiv-1),0.7);                                
-                                set(Li{g},'Clipping','off')
-                                H=get(Li{g},'Parent'); 
-                                load([adaptDataList{g}{1,1}])
-                                group2=adaptData.subData.ID;
-                                spaces=find(group2==' ');
-                                abrevGroup=group2(spaces+1);
-                                group2=group2(ismember(group2,['A':'Z' 'a':'z']));
-                                abrevGroup=[group2];
-                               legendStr{g}={['group ' abrevGroup]};								
-                               %legendStr{g}={['group' num2str(g)]};
-                            end
-                            set(Pa,'Clipping','off')
-                            set(H,'Layer','top')
-                        end                        
-                        h=refline(0,0);
-                        set(h,'color','k')                        
-                        
-                        if c==length(conditions) && group==Ngroups
-                            %on last iteration of conditions loop, add title and
-                            %vertical lines to seperate conditions
-                            %if ~size(params,1)>1                                
-                                title(params{p},'fontsize',12)
-                            %end
-                            line([lineX; lineX],ylim,'color','k')
-                            xticks=lineX+diff([lineX Xstart+condLength])./2;                    
-                            set(gca,'fontsize',8,'Xlim',[0 Xstart+condLength],'Xtick', xticks, 'Xticklabel', cond)
-                        end
-                        hold off
-                    end
-                    Xstart=Xstart+condLength;
-                    lineX(end+1)=Xstart-0.5;
                 end
-            end           
-            linkaxes(ah,'x')
+            end
+%             linkaxes(ah,'x')
+            %set(gcf,'Renderer','painters');
             legend([Li{:}],[legendStr{:}])
         end
         
