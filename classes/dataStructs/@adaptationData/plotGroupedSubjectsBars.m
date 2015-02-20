@@ -168,8 +168,8 @@ function [figHandle,allData]=plotGroupedSubjectsBars(adaptDataList,label,removeB
                 legend([{['Early (first ' num2str(N2) ' strides)'],['Late (last ' num2str(N3) ' (-' num2str(Ne) ') strides)']}, legendNames ]);
             else
                 legStr={};
-                for group=1:Ngroups
-				    load([adaptDataList{group}{1,1}])
+                for group=1:Ngroups  
+                    load([adaptDataList{group}{1,1}])
                     group2=adaptData.subData.ID;
                     spaces=find(group2==' ');
                     abrevGroup=group2(spaces+1);
