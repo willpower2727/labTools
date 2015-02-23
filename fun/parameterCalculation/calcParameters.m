@@ -328,10 +328,10 @@ for step=1:Nstrides
             meanHipPos=nanmean([sHip(:,2) fHip(:,2)],2);
             meanHipPos2D=[nanmean([sHip(:,1) fHip(:,1)],2) meanHipPos];
             %Compute ankle position relative to hip position 
-%             sAnkPos=sAnk(:,2)-meanHipPos;
-%             fAnkPos=fAnk(:,2)-meanHipPos;
-            sAnkPos=sAnk(:,2)-sHip(:,2);
-            fAnkPos=fAnk(:,2)-fHip(:,2);
+            sAnkPos=sAnk(:,2)-meanHipPos;
+            fAnkPos=fAnk(:,2)-meanHipPos;
+%             sAnkPos=sAnk(:,2)-sHip(:,2);
+%             fAnkPos=fAnk(:,2)-fHip(:,2);
             %Compute ankle position relative to average hip position 
             sAnkPosmean=sAnk(:,2)-meanHipPos;
             fAnkPosmean=fAnk(:,2)-meanHipPos;
